@@ -7,7 +7,9 @@ Guide
 	overwrites it, delete replaces character with space, sets cursor
 	back one space).
 	
-	Change cursor with arrow keys.
+	Change cursor with arrow keys, if you go off screen in a large
+	file, mined will scroll automatically.
+	
 	Press escape to save file.
 	To open file, do: ./main file
 	If you do this, pressing escape saves opened file.
