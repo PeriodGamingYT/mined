@@ -364,6 +364,13 @@ void handle_input(int key) {
 			 (key == KEY_ARROW_DOWN)
 		);
 	}
+
+	if(
+		cursor_x > screen_size_x || 
+		cursor_y > screen_size_y
+	) {
+		print_text();
+	}
 }
 
 //// main
