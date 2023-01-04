@@ -1,6 +1,7 @@
-mined is a MINimal EDitor
+mined is a MINimal text EDitor
 Use make to build
 And make run to run
+No dependencies (Besides standard C library).
 Guide
 	You write characters in an overwrite mode (writing on a character
 	overwrites it, delete replaces character with space, sets cursor
