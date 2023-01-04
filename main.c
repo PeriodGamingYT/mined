@@ -194,7 +194,7 @@ void file_save() {
 	int i = 0;
 	while(i < text_size_x * text_size_y) {
 		fputc(text[i], file);
-		if(i % text_size_x == 0) {
+		if(i % text_size_x == 0 && i > 1) {
 			fputc('\n', file);	
 		}
 		
