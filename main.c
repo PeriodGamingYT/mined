@@ -101,6 +101,23 @@ char text_at(int x, int y) {
 	return text[(y * text_size_x) + x];
 }
 
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+void print_text() {
+	clear_screen();
+	int off_x = MAX(0, cursor_x - screen_size_x);
+	int off_y = MAX(0, cursor_y - screen_size_y);
+	for(int y = 0; y < screen_size_y || y < text_size_y; y++) {
+		for(int x = 0; x < screen_size_x || x < text_size_x; x++) {
+			char text_char = text_at(x + off_x, y + off_y);
+			printf("%c", isprint(text_char) ? text_char : ' ');
+		}
+
+		printf("\n");
+	}
+
+	set_cursor(cursor_x, cursor_y);
+}
+
 int get_max_x() {
 	int i;
 	for(
@@ -190,7 +207,7 @@ void file_save() {
 		return;
 	}
 
-	rewind(file);
+	file = fopen(filename, "w+");
 	int i = 0;
 	while(i < text_size_x * text_size_y) {
 		fputc(text[i], file);
@@ -200,6 +217,8 @@ void file_save() {
 		
 		i++;
 	}
+
+	fclose(file);
 }
 
 void text_to_file_size() {
@@ -209,7 +228,8 @@ void text_to_file_size() {
 	
 	int i = 0;
 	while(!feof(file)) {
-		if(fgetc(file) == '\n' && text_size_x == 0) {
+		char current_char = fgetc(file);
+		if(current_char == '\n' && text_size_x == 0) {
 			text_size_x = i;
 		}
 
@@ -219,8 +239,6 @@ void text_to_file_size() {
 	if(text_size_x != 0) {
 		text_size_y = (int)(i / (text_size_x - 1));
 	}
-
-	rewind(file);
 }
 
 void file_load() {
@@ -228,19 +246,27 @@ void file_load() {
 		return;
 	}
 
-	file = fopen(filename, "w+");
+	file = fopen(filename, "r");
 	if(file == NULL) {
-		fprintf(stderr, "mined can't open file!");
-		exit(-1);
+		return;
 	}
 	
 	text_to_file_size();
+	rewind(file);
 	init_text();
 	int i = 0;
 	while(!feof(file)) {
-		text[i] = fgetc(file);
+		int current_char = fgetc(file);
+		if(current_char == '\n') {
+			continue;
+		}
+		
+		text[i] = current_char;
 		i++;
 	}
+
+	print_text();
+	fclose(file);
 }
 
 //// input
@@ -341,14 +367,6 @@ void handle_input(int key) {
 }
 
 //// main
-void exit_handler() {
-	if(file == NULL) {
-		return;
-	}
-
-	fclose(file);
-}
-
 int main(int argc, char *argv[]) {
 	screen_size();
 	clear_screen();
@@ -356,7 +374,6 @@ int main(int argc, char *argv[]) {
 		filename = argv[1];
 	}
 
-	atexit(exit_handler);
 	file_load(filename);
 	if(text_size_x == 0 || text_size_y == 0) {
 		init_text();
