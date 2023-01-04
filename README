@@ -10,3 +10,5 @@ Guide
 	Press escape to save file.
 	To open file, do: ./main file
 	If you do this, pressing escape saves opened file.
+	If you open a nonexistant file, mined will create an empty file
+	and saving it will create a new file.
