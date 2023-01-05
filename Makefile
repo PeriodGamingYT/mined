@@ -5,7 +5,9 @@ clean:
 	rm -f main
 
 run:
+	# rm -rf test
 	clear
 	make clean
 	make
-	./main test
+	# ./main test
+	./main

@@ -85,6 +85,10 @@ void init_text() {
 		text_size_x = screen_size_x;
 		text_size_y = screen_size_y;
 	}
+
+	for(int i = 0; i < text_size_x * text_size_y; i++) {
+		text[i] = ' ';
+	}
 }
 
 int is_text_valid() {
@@ -209,10 +213,50 @@ void file_save() {
 
 	file = fopen(filename, "w+");
 	int i = 0;
+	int stop_y = -1;
+	for(int y = 0; y < text_size_y; y++) {
+			int is_space = 1;
+			for(int x = 0; x < text_size_x && is_space; x++) {
+				if(
+					text_at(x, y) != ' ' && 
+					text_at(x, y) != 0
+				) {
+					is_space = 0;					
+				}
+			}
+
+			if(!is_space) {
+				stop_y = y;
+			}
+	}
+
+	stop_y++;
+	int stop_x = -1;
+	int checked_stop_x = 0;
 	while(i < text_size_x * text_size_y) {
+		if(stop_y > -1 && i >= text_size_x * stop_y) {
+			break;
+		}
+
+		if(!checked_stop_x) {
+			stop_x = 0;
+			for(int j = 0; j < text_size_x; j++) {
+				if(text[j + i] != ' ' && text[j + i] != 0) {
+					stop_x = j + i;
+				}
+			}
+
+			checked_stop_x = 1;
+		}
+		
 		fputc(text[i], file);
-		if(i % text_size_x == 0 && i > 1) {
-			fputc('\n', file);	
+		if(
+			(i % text_size_x == 0 && i > 1) ||
+			(i >= stop_x && stop_x > -1)
+		) {
+			fputc('\n', file);
+			checked_stop_x = 0;
+			i += i % text_size_x;
 		}
 		
 		i++;
@@ -227,10 +271,12 @@ void text_to_file_size() {
 	}
 	
 	int i = 0;
+	int past_i = 0;
 	while(!feof(file)) {
 		char current_char = fgetc(file);
-		if(current_char == '\n' && text_size_x == 0) {
-			text_size_x = i;
+		if(current_char == '\n') {
+			text_size_x = MAX(i - past_i, text_size_x);
+			past_i = i;
 		}
 
 		i++;
@@ -335,7 +381,7 @@ void handle_input(int key) {
 
 		case CTRL_KEY('q'):
 			file_save();
-			clear_screen();
+			// clear_screen();
 			exit(0);
 			break;
 
