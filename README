@@ -1,4 +1,4 @@
-mined is a MINimal text EDitor
+mined is a MINimal ascii text EDitor
 Use make to build
 And make run to run
 No dependencies (Besides standard C library).

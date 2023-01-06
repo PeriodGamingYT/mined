@@ -29,8 +29,8 @@ static int screen_size_x = 0;
 static int screen_size_y = 0;
 void set_cursor(int x, int y) {
 	// Flipped because of course, the terminal has to.
-	x %= screen_size_x;
-	y %= screen_size_y;
+	x = abs(x) % screen_size_x;
+	y = abs(y) % screen_size_y;
 	printf("\x1b[%d;%df", y + 1, x + 1);
 }
 
@@ -40,11 +40,6 @@ void clear_screen() {
 	set_cursor(0, 0);
 }
 
-void clear_line(int y) {
-	set_cursor(0, y);
-	printf("\x1b[2K");
-}
-
 void screen_size() {
 	struct winsize ws;
 	if(
@@ -52,7 +47,7 @@ void screen_size() {
 			STDOUT_FILENO, 
 			TIOCGWINSZ, 
 			&ws
-		) == -1 || 
+		) != -1 || 
 		ws.ws_col == 0
 	) {
 		screen_size_x = ws.ws_col;
@@ -74,17 +69,17 @@ void init_text() {
 	if(text != NULL) {
 		return;
 	}
-	
-	text = (char*) malloc(
-		sizeof(char*) * 
-		screen_size_x *
-		screen_size_y
-	);
 
 	if(text_size_x == 0 && text_size_y == 0) {
 		text_size_x = screen_size_x;
 		text_size_y = screen_size_y;
 	}
+	
+	text = (char*) malloc(
+		sizeof(char*) * 
+		text_size_x *
+		text_size_y
+	);
 
 	for(int i = 0; i < text_size_x * text_size_y; i++) {
 		text[i] = ' ';
@@ -107,13 +102,15 @@ char text_at(int x, int y) {
 
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 void print_text() {
-	clear_screen();
+	// clear_screen();
 	int off_x = MAX(0, cursor_x - screen_size_x);
 	int off_y = MAX(0, cursor_y - screen_size_y);
-	for(int y = 0; y < screen_size_y || y < text_size_y; y++) {
-		for(int x = 0; x < screen_size_x || x < text_size_x; x++) {
+	set_cursor(0, 0);
+	for(int y = 0; y < screen_size_y && y < text_size_y; y++) {
+		for(int x = 0; x < screen_size_x && x < text_size_x; x++) {
 			char text_char = text_at(x + off_x, y + off_y);
-			printf("%c", isprint(text_char) ? text_char : ' ');
+			set_cursor(x, y);
+			printf("%c", text_char);
 		}
 
 		printf("\n");
@@ -122,48 +119,26 @@ void print_text() {
 	set_cursor(cursor_x, cursor_y);
 }
 
-int get_max_x() {
-	int i;
-	for(
-		i = text_size_x - 1;
-		i >= 0 &&
-		(
-			text_at(i, cursor_y) == ' ' ||
-			text_at(i, cursor_y) == 0
-		);
-		
-		i--
-	);
-
-	return i + 1;
-}
-
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 void wrap_cursor() {
 	if(cursor_x < 0) {
-		cursor_y--;
 		cursor_x = text_size_x - 1;
-		int max_x = get_max_x();
-		cursor_x = MIN(cursor_x, max_x);
 	}
 
 	if(cursor_y < 0) {
-		cursor_y = 0;
-		cursor_x = 0;
+		cursor_y = text_size_y - 1;
 	}
 	
 	if(cursor_x >= text_size_x) {
 		cursor_x = 0;
-		cursor_y++;
 	}
 
 	if(cursor_y >= text_size_y) {
-		cursor_x = text_size_x - 1;
-		cursor_y = text_size_y - 1;
+		cursor_y = 0;
 	}
 }
 
 void print_text_at_cursor() {
+	wrap_cursor();
 	set_cursor(cursor_x, cursor_y);
 	printf("%c", text_at(cursor_x, cursor_y));
 }
@@ -176,31 +151,33 @@ void set_text_char(char value) {
 	text[(cursor_y * text_size_x) + cursor_x] = value;
 	print_text_at_cursor();
 	cursor_x++;
+}
+
+int input_number() {
+	struct termios oldattr, newattr;
+  tcgetattr( STDIN_FILENO, &oldattr );
+  newattr = oldattr;
+  newattr.c_oflag &= ~(OPOST);
+  newattr.c_lflag &= ~(ECHO);
+  tcsetattr( STDIN_FILENO, TCSANOW, &newattr );
+  int result;
+  scanf("%d", &result);
+  tcsetattr( STDIN_FILENO, TCSANOW, &oldattr );
+  return result;
+}
+
+void text_user_goto() {
+	int x = input_number();
+	set_cursor(cursor_x, cursor_y);
+	int y = input_number();
+	cursor_x = x;
+	cursor_y = y;
 	wrap_cursor();
 }
 
-void text_delete() {
-	if(!is_text_valid()) {
-		return;
-	}
-	
-	cursor_x--;
-	if(cursor_x >= 0) {
-		text[(cursor_y * text_size_x) + cursor_x] = ' ';
-	}
-	
-	print_text_at_cursor();
-	wrap_cursor();
-}
-
-void text_newline() {
-	if(!is_text_valid()) {
-		return;
-	}
-
-	cursor_y++;
-	cursor_x = 0;
-	wrap_cursor();
+void text_user_insert() {
+	int user_char = input_number();
+	set_text_char((char)user_char);
 }
 
 //// file
@@ -213,49 +190,10 @@ void file_save() {
 
 	file = fopen(filename, "w+");
 	int i = 0;
-	int stop_y = -1;
-	for(int y = 0; y < text_size_y; y++) {
-			int is_space = 1;
-			for(int x = 0; x < text_size_x && is_space; x++) {
-				if(
-					text_at(x, y) != ' ' && 
-					text_at(x, y) != 0
-				) {
-					is_space = 0;					
-				}
-			}
-
-			if(!is_space) {
-				stop_y = y;
-			}
-	}
-
-	stop_y++;
-	int stop_x = -1;
-	int checked_stop_x = 0;
-	while(i < text_size_x * text_size_y) {
-		if(stop_y > -1 && i >= text_size_x * stop_y) {
-			break;
-		}
-
-		if(!checked_stop_x) {
-			stop_x = 0;
-			for(int j = 0; j < text_size_x; j++) {
-				if(text[j + i] != ' ' && text[j + i] != 0) {
-					stop_x = j + i;
-				}
-			}
-
-			checked_stop_x = 1;
-		}
-		
+	while(i < text_size_x * text_size_y) {		
 		fputc(text[i], file);
-		if(
-			(i % text_size_x == 0 && i > 1) ||
-			(i >= stop_x && stop_x > -1)
-		) {
+		if(i % text_size_x == 0 && i > 1) {
 			fputc('\n', file);
-			checked_stop_x = 0;
 			i += i % text_size_x;
 		}
 		
@@ -323,7 +261,7 @@ void file_load() {
 #define KEY_ARROW_LEFT 1001
 #define KEY_ARROW_DOWN 1002
 #define KEY_ARROW_RIGHT 1003
-#define KEY_ENTER '\n'
+#define KEY_ENTER 13
 #define KEY_TAB '\t'
 #define CTRL_KEY(k) ((k) & 0x1f)
 static int is_keep_open = 1;
@@ -365,28 +303,36 @@ void handle_input(int key) {
 			break;
 
 		case KEY_BACKSPACE:
-			text_delete();
+			cursor_x--;
 			break;
 
 		case KEY_ENTER:
-			text_newline();
+			cursor_y++;
 			break;
 
 		case KEY_TAB:
 			for(int i = 0; i < TAB_SIZE; i++) {
 				set_text_char(' ');
+				wrap_cursor();
 			}
 
 			break;
 
+		case CTRL_KEY('a'):
+			text_user_insert();
+			break;
+
+		case CTRL_KEY('g'):
+			text_user_goto();
+			break;
+
 		case CTRL_KEY('q'):
 			file_save();
-			// clear_screen();
+			clear_screen();
 			exit(0);
 			break;
 
 		case CTRL_KEY('c'):
-			clear_screen();
 			exit(0);
 			break;
 					
@@ -409,8 +355,10 @@ void handle_input(int key) {
 			-(key == KEY_ARROW_UP) + 
 			 (key == KEY_ARROW_DOWN)
 		);
+
 	}
 
+	wrap_cursor();
 	if(
 		cursor_x > screen_size_x || 
 		cursor_y > screen_size_y
