@@ -102,7 +102,7 @@ char text_at(int x, int y) {
 
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 void print_text() {
-	// clear_screen();
+	clear_screen();
 	int off_x = MAX(0, cursor_x - screen_size_x);
 	int off_y = MAX(0, cursor_y - screen_size_y);
 	set_cursor(0, 0);
@@ -110,10 +110,13 @@ void print_text() {
 		for(int x = 0; x < screen_size_x && x < text_size_x; x++) {
 			char text_char = text_at(x + off_x, y + off_y);
 			set_cursor(x, y);
+			if(!isprint(text_char)) {
+				printf(" ");
+				continue;	
+			}
+			
 			printf("%c", text_char);
 		}
-
-		printf("\n");
 	}
 
 	set_cursor(cursor_x, cursor_y);
@@ -190,7 +193,13 @@ void file_save() {
 
 	file = fopen(filename, "w+");
 	int i = 0;
-	while(i < text_size_x * text_size_y) {		
+	while(i < text_size_x * text_size_y) {
+		if(!isprint(text[i])) {
+			fputc(' ', file);
+			i++;
+			continue;
+		}
+		
 		fputc(text[i], file);
 		if(i % text_size_x == 0 && i > 1) {
 			fputc('\n', file);
@@ -209,12 +218,10 @@ void text_to_file_size() {
 	}
 	
 	int i = 0;
-	int past_i = 0;
 	while(!feof(file)) {
 		char current_char = fgetc(file);
-		if(current_char == '\n') {
-			text_size_x = MAX(i - past_i, text_size_x);
-			past_i = i;
+		if(current_char == '\n' && text_size_x == 0) {
+			text_size_x = i;
 		}
 
 		i++;
@@ -244,12 +251,18 @@ void file_load() {
 		if(current_char == '\n') {
 			continue;
 		}
+
+		if(!isprint(current_char)) {
+			text[i] = ' ';
+			continue;
+		}
 		
 		text[i] = current_char;
 		i++;
 	}
 
 	print_text();
+	printf("\n");
 	fclose(file);
 }
 
@@ -376,7 +389,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	file_load(filename);
-	if(text_size_x == 0 || text_size_y == 0) {
+	if(filename == NULL || file == NULL) {
 		init_text();
 	}
 	
