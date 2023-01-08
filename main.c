@@ -388,7 +388,7 @@ int main(int argc, char *argv[]) {
 		filename = argv[1];
 	}
 
-	file_load(filename);
+	file_load();
 	if(filename == NULL || file == NULL) {
 		init_text();
 	}
