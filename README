@@ -4,11 +4,17 @@ And make run to run
 No dependencies (Besides standard C library).
 Guide
 	You write characters in an overwrite mode (writing on a character
-	overwrites it, delete replaces character with space, sets cursor
-	back one space).
+	overwrites it, delete sends cursor back one space.
+	Pressing enter sets cursor down by 1 row.
 	
 	Change cursor with arrow keys, if you go off screen in a large
 	file, mined will scroll automatically.
+
+	Ctrl+G and entering a X pressing enter, and then a Y, also pr
+	essing enter, you will set the cursor location to X, and Y.
+
+	Ctrl+A and entering a ASCII character (decimal number form)
+	will insert said ASCII character.
 	
 	Press escape to save file.
 	To open file, do: ./main file
