@@ -315,6 +315,7 @@ void handle_input(int key) {
 			
 			break;
 
+		case CTRL('h'):
 		case KEY_BACKSPACE:
 			cursor_x--;
 			break;
