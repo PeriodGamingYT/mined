@@ -322,6 +322,7 @@ void handle_input(int key) {
 
 		case KEY_ENTER:
 			cursor_y++;
+			cursor_x = 0;
 			break;
 
 		case KEY_TAB:
